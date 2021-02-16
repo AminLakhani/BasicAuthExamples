@@ -5,6 +5,8 @@ using MailKit.Security;
 using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -57,8 +59,12 @@ namespace BasicAuthExamples
                 .CreateWithApplicationOptions(pcaOptions).Build();
 
 
+            SecureString passwordSecure = new NetworkCredential("", "myPass").SecurePassword;
+
+
             // Make the interactive token request
-            var authResult = await pca.AcquireTokenInteractive(ewsScopes).ExecuteAsync();
+            var authResult = await pca.AcquireTokenByUsernamePassword(ewsScopes, "USERNAME", passwordSecure).ExecuteAsync();
+
 
 
             using (var client = new ImapClient(new ProtocolLogger("imap.log")))
