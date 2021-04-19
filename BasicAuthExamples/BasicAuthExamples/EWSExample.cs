@@ -50,25 +50,35 @@ namespace BasicAuthExamples
             var pca = PublicClientApplicationBuilder
                 .CreateWithApplicationOptions(pcaOptions).Build();
 
+            var securePassword = new SecureString();
+            foreach (char c in "")
+            {
+                securePassword.AppendChar(c);
+            }
 
+            try
+            {
+                // Make the interactive token request
+                var authResult = await pca.AcquireTokenByUsernamePassword(ewsScopes, "USERNAME", securePassword).ExecuteAsync();
 
-            SecureString passwordSecure = new NetworkCredential("", "myPass").SecurePassword;
+                // Configure the ExchangeService with the access token
+                var ewsClient = new ExchangeService();
+                ewsClient.Url = new Uri("https://outlook.office365.com/EWS/Exchange.asmx");
+                ewsClient.Credentials = new OAuthCredentials(authResult.AccessToken);
 
+                // Make an EWS call
+                EmailMessage email = new EmailMessage(ewsClient);
+                email.ToRecipients.Add("user1@contoso.com");
+                email.Subject = "HelloWorld";
+                email.Body = new MessageBody("This is the first email I've sent by using the EWS Managed API");
+                email.Send();
 
-            // Make the interactive token request
-            var authResult = await pca.AcquireTokenByUsernamePassword(ewsScopes, "USERNAME", passwordSecure).ExecuteAsync();
-
-            // Configure the ExchangeService with the access token
-            var ewsClient = new ExchangeService();
-            ewsClient.Url = new Uri("https://outlook.office365.com/EWS/Exchange.asmx");
-            ewsClient.Credentials = new OAuthCredentials(authResult.AccessToken);
-
-            // Make an EWS call
-            EmailMessage email = new EmailMessage(ewsClient);
-            email.ToRecipients.Add("user1@contoso.com");
-            email.Subject = "HelloWorld";
-            email.Body = new MessageBody("This is the first email I've sent by using the EWS Managed API");
-            email.Send();
+            }
+            catch (MsalException x)
+            {
+                Console.Write(x.Message);
+                throw;
+            }
 
             return "sucess";
         }
