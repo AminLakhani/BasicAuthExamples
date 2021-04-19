@@ -4,6 +4,7 @@ using MailKit.Security;
 using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Security;
 using System.Text;
@@ -17,9 +18,9 @@ namespace BasicAuthExamples
         {
             using (var client = new Pop3Client(new ProtocolLogger("pop3.log")))
             {
-                client.Connect("outlook.office365.com", 993, SecureSocketOptions.SslOnConnect);
+                client.Connect("outlook.office365.com", 995, SecureSocketOptions.SslOnConnect);
 
-                client.Authenticate("username", "password");
+                client.Authenticate("", "");
 
                 for (int i = 0; i < client.Count; i++)
                 {
@@ -36,10 +37,11 @@ namespace BasicAuthExamples
             }
         }
 
+
         public static async Task FetchAllMessagesOAuthAsync()
         {
             // The permission scope required for EWS access
-            var ewsScopes = new string[] { "https://outlook.office365.com/EWS.AccessAsUser.All" };
+            var ewsScopes = new string[] { "https://outlook.office365.com/POP.AccessAsUser.All" };
             var ClientId = "";
             var TenantId = "";
 
@@ -56,32 +58,47 @@ namespace BasicAuthExamples
                 .CreateWithApplicationOptions(pcaOptions).Build();
 
 
-            SecureString passwordSecure = new NetworkCredential("", "myPass").SecurePassword;
+            //SecureString passwordSecure = new NetworkCredential("", "myPass").SecurePassword;
 
 
-            // Make the interactive token request
-            var authResult = await pca.AcquireTokenByUsernamePassword(ewsScopes, "USERNAME", passwordSecure).ExecuteAsync();
-
-
-
-            using (var client = new Pop3Client(new ProtocolLogger("pop3.log")))
+            var securePassword = new SecureString();
+            foreach (char c in "")
             {
-                client.Connect("outlook.office365.com", 993, SecureSocketOptions.SslOnConnect);
+                securePassword.AppendChar(c);
+            }
 
-                client.Authenticate(new SaslMechanismOAuth2("username", authResult.AccessToken));
+            try
+            {
+                // Make the interactive token request
+                var authResult = await pca.AcquireTokenByUsernamePassword(ewsScopes,
+                                                             "",
+                                                              securePassword).ExecuteAsync();
 
-                for (int i = 0; i < client.Count; i++)
+
+                using (var client = new Pop3Client(new ProtocolLogger("pop3.log")))
                 {
-                    var message = client.GetMessage(i);
+                    client.Connect("outlook.office365.com", 995, SecureSocketOptions.SslOnConnect);
 
-                    // write the message to a file
-                    message.WriteTo(string.Format("{0}.msg", i));
+                    client.Authenticate(new SaslMechanismOAuth2("", authResult.AccessToken));
 
-                    // mark the message for deletion
-                    client.DeleteMessage(i);
+                    for (int i = 0; i < client.Count; i++)
+                    {
+                        var message = client.GetMessage(i);
+
+                        // write the message to a file
+                        message.WriteTo(string.Format("{0}.msg", i));
+
+                        // mark the message for deletion
+                        client.DeleteMessage(i);
+                    }
+
+                    client.Disconnect(true);
                 }
-
-                client.Disconnect(true);
+            }
+            catch (MsalException x)
+            {
+                Console.Write(x.Message);
+                throw;
             }
 
         }
